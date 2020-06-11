@@ -79,6 +79,31 @@ pub async fn create_todo(db_pool: &DBPool, body: TodoRequest) -> Result<Todo> {
     Ok(row_to_todo(&row))
 }
 
+pub async fn update_todo(db_pool: &DBPool, id: i32, body: TodoUpdateRequest) -> Result<Todo> {
+    let con = get_db_con(db_pool).await?;
+    let query = format!(
+        "UPDATE {} SET name = $1, checked = $2 WHERE id = $3 RETURNING *",
+        TABLE
+    );
+
+    let row = con
+        .query_one(query.as_str(), &[&body.name, &body.checked, &id])
+        .await
+        .map_err(DBQueryError)?;
+
+    Ok(row_to_todo(&row))
+}
+
+pub async fn delete_todo(db_pool: &DBPool, id: i32) -> Result<u64> {
+    let con = get_db_con(db_pool).await?;
+    let query = format!("DELETE FROM {} WHERE id = $1 RETURNING *", TABLE);
+
+    Ok(con
+        .execute(query.as_str(), &[&id])
+        .await
+        .map_err(DBQueryError)?)
+}
+
 fn row_to_todo(row: &Row) -> Todo {
     let id: i32 = row.get(0);
     let name: String = row.get(1);
